@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>神學知識圖譜</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            text-align: center;
+            color: #2d3748;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+        .legend {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 12px;
+            background: #f7fafc;
+            border-radius: 20px;
+            font-size: 0.85em;
+        }
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid #333;
+        }
+        .graph-container {
+            position: relative;
+            width: 100%;
+            height: 800px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+            background: linear-gradient(to bottom, #f7fafc 0%, #edf2f7 100%);
+        }
+        .node {
+            position: absolute;
+            padding: 15px 20px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            font-size: 0.9em;
+            line-height: 1.5;
+            text-align: center;
+            border: 3px solid;
+            min-width: 180px;
+        }
+        .node:hover {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.2);
+            z-index: 100;
+        }
+        .node-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            font-size: 1.05em;
+        }
+        .node-ref {
+            font-size: 0.8em;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+        .sovereignty { background: #f9d5e5; border-color: #c71585; color: #000; }
+        .grace { background: #c3e6cb; border-color: #28a745; color: #000; }
+        .sin { background: #f8d7da; border-color: #dc3545; color: #000; }
+        .jesus { background: #d4edda; border-color: #155724; color: #000; }
+        .warning { background: #fff3cd; border-color: #ffc107; color: #000; }
+        .event { background: #d1ecf1; border-color: #0c5460; color: #000; }
+        .law { background: #e7d4f5; border-color: #6f42c1; color: #000; }
+        
+        svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+        .connection {
+            fill: none;
+            stroke: #4a5568;
+            stroke-width: 2;
+            opacity: 0.4;
+        }
+        .connection-strong {
+            stroke: #2d3748;
+            stroke-width: 3;
+            opacity: 0.7;
+        }
+        .connection-dotted {
+            stroke-dasharray: 5,5;
+        }
+        .node.active {
+            z-index: 101;
+        }
+        .node.connected {
+            opacity: 1;
+        }
+        .node.dimmed {
+            opacity: 0.3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📖 上帝主權與人的回應 - 神學知識圖譜</h1>
+        
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color sovereignty"></div>
+                <span>神的主權</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color grace"></div>
+                <span>恩典憐憫</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color sin"></div>
+                <span>人的罪性</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color jesus"></div>
+                <span>基督成全</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color event"></div>
+                <span>歷史事件</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color warning"></div>
+                <span>實踐教導</span>
+            </div>
+        </div>
+
+        <div class="graph-container" id="graphContainer">
+            <svg id="connections"></svg>
+        </div>
+    </div>
+
+    <script>
+        const nodes = [
+            // 中心：神的主權
+            {id: 'sovereignty', title: '上帝的主權與憐憫', desc: '超越並使用一切事件', class: 'sovereignty', x: 50, y: 10},
+            
+            // 第二層：核心概念
+            {id: 'sin', title: '人的罪性', desc: '羅3:10,23\n沒有一個義人', class: 'sin', x: 15, y: 25},
+            {id: 'law', title: '律法的本質', desc: '出於愛與公義\n非僅禁止', class: 'law', x: 50, y: 25},
+            {id: 'mercy', title: '憐憫的彰顯', desc: '該死卻不死', class: 'grace', x: 85, y: 25},
+            
+            // 第三層：歷史事件
+            {id: 'calf', title: '金牛犢事件', desc: '出32章', class: 'event', x: 8, y: 45},
+            {id: 'moses-tablets', title: '摩西摔法版', desc: '出32:19\n塔木德認可', class: 'event', x: 25, y: 45},
+            {id: 'moses-rock', title: '摩西擊石', desc: '民20:8-12\n定罪但延遲', class: 'event', x: 42, y: 45},
+            {id: 'uzzah', title: '烏撒扶約櫃', desc: '撒下6:6-7\n即時擊殺', class: 'event', x: 58, y: 45},
+            {id: 'renewal', title: '約的更新', desc: '出34:1-4,28', class: 'grace', x: 75, y: 45},
+            {id: 'temple', title: '耶穌潔淨聖殿', desc: '約2:13-17\n完全的義怒', class: 'jesus', x: 92, y: 45},
+            
+            // 第四層：神學應用
+            {id: 'grace-prep', title: '恩典的預備', desc: '羅3:20 加3:24\n律法使人知罪', class: 'grace', x: 35, y: 65},
+            {id: 'christ', title: '引向基督', desc: '終極救贖', class: 'jesus', x: 65, y: 65},
+            
+            // 第五層：人的回應
+            {id: 'human-anger', title: '人的怒氣', desc: '混雜不完全', class: 'warning', x: 20, y: 80},
+            {id: 'incomp', title: '不能成就神義', desc: '雅1:20', class: 'sin', x: 40, y: 80},
+            {id: 'teach', title: '保羅教導', desc: '弗4:26-27\n生氣卻不犯罪', class: 'warning', x: 60, y: 80},
+            {id: 'jesus-anger', title: '耶穌的義怒', desc: '無罪且成就神義', class: 'jesus', x: 80, y: 80}
+        ];
+
+        const connections = [
+            {from: 'sovereignty', to: 'sin', type: 'strong'},
+            {from: 'sovereignty', to: 'law', type: 'strong'},
+            {from: 'sovereignty', to: 'mercy', type: 'strong'},
+            {from: 'sovereignty', to: 'calf', type: 'dotted'},
+            {from: 'sovereignty', to: 'moses-tablets', type: 'dotted'},
+            {from: 'sovereignty', to: 'moses-rock', type: 'dotted'},
+            {from: 'sovereignty', to: 'uzzah', type: 'dotted'},
+            {from: 'sovereignty', to: 'renewal', type: 'dotted'},
+            {from: 'sovereignty', to: 'temple', type: 'dotted'},
+            {from: 'sovereignty', to: 'jesus-anger', type: 'strong'},
+            
+            {from: 'sin', to: 'moses-tablets', type: 'normal'},
+            {from: 'sin', to: 'moses-rock', type: 'normal'},
+            {from: 'sin', to: 'uzzah', type: 'normal'},
+            {from: 'sin', to: 'incomp', type: 'normal'},
+            
+            {from: 'law', to: 'grace-prep', type: 'normal'},
+            
+            {from: 'calf', to: 'moses-tablets', type: 'normal'},
+            {from: 'moses-tablets', to: 'temple', type: 'dotted'},
+            {from: 'moses-tablets', to: 'human-anger', type: 'normal'},
+            {from: 'moses-rock', to: 'mercy', type: 'normal'},
+            {from: 'uzzah', to: 'mercy', type: 'normal'},
+            {from: 'renewal', to: 'grace-prep', type: 'normal'},
+            
+            {from: 'grace-prep', to: 'christ', type: 'strong'},
+            
+            {from: 'human-anger', to: 'incomp', type: 'normal'},
+            {from: 'human-anger', to: 'teach', type: 'normal'},
+            {from: 'human-anger', to: 'jesus-anger', type: 'dotted'}
+        ];
+
+        const container = document.getElementById('graphContainer');
+        const svg = document.getElementById('connections');
+        
+        // Create nodes
+        nodes.forEach(node => {
+            const div = document.createElement('div');
+            div.className = `node ${node.class}`;
+            div.id = node.id;
+            div.style.left = `${node.x}%`;
+            div.style.top = `${node.y}%`;
+            div.style.transform = 'translate(-50%, -50%)';
+            div.style.zIndex = '10';
+            div.innerHTML = `
+                <div class="node-title">${node.title}</div>
+                <div class="node-ref">${node.desc.replace(/\n/g, '<br>')}</div>
+            `;
+            
+            div.addEventListener('mouseenter', () => highlightConnections(node.id));
+            div.addEventListener('mouseleave', () => clearHighlight());
+            
+            container.appendChild(div);
+        });
+
+        // Draw connections
+        function drawConnections() {
+            svg.innerHTML = '';
+            connections.forEach(conn => {
+                const fromNode = document.getElementById(conn.from);
+                const toNode = document.getElementById(conn.to);
+                if (!fromNode || !toNode) return;
+
+                const fromRect = fromNode.getBoundingClientRect();
+                const toRect = toNode.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+
+                const x1 = fromRect.left + fromRect.width / 2 - containerRect.left;
+                const y1 = fromRect.top + fromRect.height / 2 - containerRect.top;
+                const x2 = toRect.left + toRect.width / 2 - containerRect.left;
+                const y2 = toRect.top + toRect.height / 2 - containerRect.top;
+
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                const d = `M ${x1} ${y1} Q ${(x1 + x2) / 2} ${(y1 + y2) / 2} ${x2} ${y2}`;
+                path.setAttribute('d', d);
+                path.setAttribute('class', `connection ${conn.type === 'strong' ? 'connection-strong' : ''} ${conn.type === 'dotted' ? 'connection-dotted' : ''}`);
+                path.dataset.from = conn.from;
+                path.dataset.to = conn.to;
+                svg.appendChild(path);
+            });
+        }
+
+        function highlightConnections(nodeId) {
+            const allNodes = document.querySelectorAll('.node');
+            const allPaths = document.querySelectorAll('.connection');
+            
+            const connected = new Set([nodeId]);
+            connections.forEach(conn => {
+                if (conn.from === nodeId) connected.add(conn.to);
+                if (conn.to === nodeId) connected.add(conn.from);
+            });
+
+            allNodes.forEach(node => {
+                if (connected.has(node.id)) {
+                    node.classList.add('connected');
+                    node.classList.remove('dimmed');
+                } else {
+                    node.classList.remove('connected');
+                    node.classList.add('dimmed');
+                }
+            });
+
+            allPaths.forEach(path => {
+                if (path.dataset.from === nodeId || path.dataset.to === nodeId) {
+                    path.style.opacity = '1';
+                    path.style.strokeWidth = '4';
+                } else {
+                    path.style.opacity = '0.1';
+                }
+            });
+        }
+
+        function clearHighlight() {
+            document.querySelectorAll('.node').forEach(node => {
+                node.classList.remove('connected', 'dimmed');
+            });
+            document.querySelectorAll('.connection').forEach(path => {
+                path.style.opacity = '';
+                path.style.strokeWidth = '';
+            });
+        }
+
+        drawConnections();
+        window.addEventListener('resize', drawConnections);
+    </script>
+</body>
+</html>
